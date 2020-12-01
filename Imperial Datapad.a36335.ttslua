@@ -1,0 +1,637 @@
+--[[ IMPERIAL CONSOLE --]]
+
+msg = {
+	sys = {0,0.6,0},
+	prompt = {255,153/255,0},
+}
+
+--hero tables
+leadersTeamAdmPos = {
+	{4.3, 2, 2.08},
+	{4.3, 2, 0.83},
+	{4.3, 2, -0.42},
+	{4.3, 2, -1.49},
+	{2.8, 2, 2.08},
+	{2.8, 2, 0.83},
+	{2.8, 2, -0.42}
+	}
+
+leadersTeamGenPos = {
+	{-4.3, 2, 2.08},
+	{-4.3, 2, 0.83},
+	{-4.3, 2, -0.42},
+	{-4.3, 2, -1.49},
+	{-2.8, 2, 2.08},
+	{-2.8, 2, 0.83},
+	{-2.8, 2, -0.42}
+	}
+
+leadersSoloPos = {
+	{4.3, 2, 2.08},
+	{4.3, 2, 0.83},
+	{4.3, 2, -0.42},
+	{4.3, 2, -1.49},
+	{2.8, 2, 2.08},
+	{2.8, 2, 0.83},
+	{2.8, 2, -0.42},
+	{2.8, 2, -1.49},
+	{1.3, 2, 2.08}
+	}
+
+--tracking variables
+factionOrigin = "Imperial"
+isRecruiting = false
+teamGame = true
+
+--objects
+recruitMatsGUID = {'9bf3fd', 'e0bd9c'}
+zoneBoardGUID = '817c29'
+zoneImpMissionsUnusedGUID = 'de770e'
+recruitMats = {}
+recruitCard = {}
+
+
+
+
+--[[INIT --]]
+function onload()
+
+	--spawn buttons
+	local params = {
+		height = 300,
+		width = 300,
+		font_size = 100,
+		color = {1,1,1,0},
+		function_owner = self,
+		label = ''
+	}
+
+	params.click_function = 'fcnProbeButton'
+	params.position = {-1.065,0.05,-0.6}
+	params.tooltip = 'Draw 1 Probe'
+	self.createButton(params)
+
+	params.click_function = 'fcnProjectButton'
+	params.position = {-0.08,0.05,-0.6}
+	params.tooltip = 'Draw 1 Project'
+	self.createButton(params)
+
+	params.click_function = 'fcnMissionButton'
+	params.position = {0.91,0.05,-0.6}
+	params.tooltip = 'Draw 1 Mission'
+	self.createButton(params)
+
+	params.click_function = 'fcnClearMissionButton'
+	params.position = {-1.5,0.05,0.74}
+	params.tooltip = 'Clear Mission Area'
+	self.createButton(params)
+
+	params.click_function = 'fcnRecallLeadersButton'
+	params.position = {-0.79,0.05,0.74}
+	params.tooltip = 'Recall Leaders to Pool'
+	self.createButton(params)
+
+	params.click_function = 'fcnDrawRefreshButton'
+	params.position = {-0.07,0.05,0.74}
+	params.tooltip = 'Draw 2 Missions and 2 Probes'
+	self.createButton(params)
+
+	params.click_function = 'fcnRecruitButton'
+	params.position = {0.63,0.05,0.74}
+	params.tooltip = 'Draw Possible Recruits'
+	self.createButton(params)
+
+	params.click_function = 'fcnBuildButton'
+	params.position = {1.3,0.05,0.74}
+	params.tooltip = 'Report Current Build Counts'
+	self.createButton(params)
+
+	isResettingLocal = false
+	factionOrigin = "Imperial"
+
+	for i=1,2 do
+		recruitMats[i] = getObjectFromGUID(recruitMatsGUID[i])
+	end
+
+	zoneBoard = getObjectFromGUID(zoneBoardGUID)
+	zoneImpMissionsUnused = getObjectFromGUID(zoneImpMissionsUnusedGUID)
+	fig_attached = nil
+	fig_type = nil
+
+	circles = {'d9cdff', '33902d', '3b6bf4', '6896b6'}
+	join_circle = false
+	join_number = 0
+
+end
+
+--[[ UTILITY FUNCTIONS --]]
+
+--quand l'obket est spawned, le bouton adéquat apparaît, quand il est remis dans le container, le bouton disparaît--
+function onObjectSpawn(object)
+
+	for k,circle in pairs(circles) do
+		if object.getGUID() == circle then
+			if join_circle == false then
+
+				params = {
+			        click_function = 'joinCircle',
+			        function_owner = self,
+			        label          = 'Join Circle',
+			        position       = {8, 0.101, -7.25},
+			        rotation       = {0, 0, 0},
+			        width          = 1500,
+			        height         = 250,
+			        font_size      = 150,
+			        color          = {0.4, 0.4, 0.4},
+			        font_color     = {0, 0, 0},
+			        tooltip        = "Join figurines to circles.",
+			    }
+			  self.createButton(params)
+
+				join_circle = true
+			end
+		end
+	end
+
+	local params = {
+		function_owner = self,
+		rotation       = {0, 0, 0},
+		width          = 800,
+		height         = 200,
+		font_size      = 125,
+		color          = {0.4, 0.4, 0.4},
+		font_color     = {0, 0, 0},
+	}
+
+  if object.getGUID() == 'd9cdff' then
+		params.click_function = 'detachCaptured'
+		params.position = {7, 0.101, -6.5}
+		params.label = 'Captured'
+		params.tooltip = 'Detach Captured'
+		self.createButton(params)
+		join_number = join_number + 1
+
+	elseif object.getGUID() == '33902d' then
+		params.click_function = 'detachFrozen'
+		params.position = {9, 0.101, -6.5}
+		params.label = 'Frozen'
+		params.tooltip = 'Detach Frozen in carbonite'
+		self.createButton(params)
+		join_number = join_number + 1
+
+	elseif object.getGUID() == '3b6bf4' then
+		params.click_function = 'detachLured'
+		params.position = {7, 0.101, -6}
+		params.label = 'Lured'
+		params.tooltip = 'Detach Lured by the Dark Side'
+		self.createButton(params)
+		join_number = join_number + 1
+
+	elseif object.getGUID() == '6896b6' then
+		params.click_function = 'detachBounty'
+		params.position = {9, 0.101, -6}
+		params.label = 'Bounty'
+		params.tooltip = 'Detach Post Bounty'
+		self.createButton(params)
+		join_number = join_number + 1
+
+	end
+end
+
+
+function findHitsInRadius(pos, radius)
+
+    local radius = (radius or 0.4)
+    local hit_list = Physics.cast({
+        origin       = pos,
+        direction    = {0,1,0},
+        type         = 3,
+        size         = {radius,radius,radius},
+        max_distance = 0,
+        debug        = false,
+    })
+
+		local refined_list = {}
+
+		for key, value in ipairs(hit_list) do
+      table.insert(refined_list, value.hit_object)
+    end
+
+		return refined_list
+end
+
+function joinCircle()
+
+	local circle_stay = {'d9cdff', '33902d', '3b6bf4'}
+	local objects = zoneBoard.getObjects()
+	for k, object in pairs(objects) do
+		for k, circle in pairs(circle_stay) do
+		  if object.getGUID() == circle then
+				local circle_pos = object.getPosition()
+				local hit_circle = findHitsInRadius(circle_pos)
+				for k, object_hit in pairs(hit_circle) do
+					local type = object_hit.tag
+					if type == 'Figurine' then
+						if object.getGUID() == '3b6bf4' then
+							local temp_fig_type = object_hit.getDescription()
+							if temp_fig_type == 'Rebel Admiral' then
+								fig_type = 'Imperial Admiral'
+							else fig_type = 'Imperial General'
+							end
+							object.addAttachment(object_hit)
+						else object.addAttachment(object_hit)
+					  end
+					end
+				end
+			end
+		end
+		if object.getGUID() == '6896b6' then
+			local circle_pos = object.getPosition()
+			local hit_circle = findHitsInRadius(circle_pos)
+			for k, object_hit in pairs(hit_circle) do
+				local type = object_hit.tag
+				if type == 'Figurine' then
+					object_hit.addAttachment(object)
+					fig_attached = object_hit.getGUID()
+				end
+			end
+		end
+	end
+end
+
+
+function detachCircle(p_guid)
+
+	local guid = p_guid
+	local objects = {}
+	objects = zoneBoard.getObjects()
+
+	for k,object in pairs(objects) do
+		if object.getGUID() == guid then
+			object.removeAttachments()
+		elseif object.getGUID() == fig_attached then
+			object.removeAttachments()
+		end
+	end
+end
+
+function detachCaptured()
+	detachCircle('d9cdff')
+end
+
+function detachFrozen()
+	detachCircle('33902d')
+end
+
+function detachLured()
+	detachCircle('3b6bf4')
+end
+
+function detachBounty()
+	detachCircle('6896b6')
+end
+
+function onObjectEnterContainer(p_container, p_object)
+
+	local datapad = getObjectFromGUID('a36335')
+	--log(join_number,'join_number')
+
+	if p_container.getGUID() == 'd533cf' then
+		for k, circle in pairs(circles) do
+			if p_object.getGUID() == circle then
+				local index_button = datapad.getButtons()
+				for k, value in pairs(index_button)	do
+					if value.click_function == 'detachCaptured' and p_object.getGUID() == 'd9cdff' then
+						local index_value = value.index
+						datapad.removeButton(index_value)
+						join_number = join_number - 1
+						--log(join_number,'j_n_1')
+					elseif value.click_function == 'detachFrozen' and p_object.getGUID() == '33902d' then
+						local index_value = value.index
+						datapad.removeButton(index_value)
+						join_number = join_number - 1
+						--log(join_number,'j_n_2')
+					elseif value.click_function == 'detachLured' and p_object.getGUID() == '3b6bf4' then
+						local index_value = value.index
+						datapad.removeButton(index_value)
+						join_number = join_number - 1
+						--log(join_number,'j_n_3')
+					elseif value.click_function == 'detachBounty' and p_object.getGUID() == '6896b6' then
+						local index_value = value.index
+						datapad.removeButton(index_value)
+						join_number = join_number - 1
+					end
+				end
+			end
+		end
+
+	end
+
+	if join_number == 0 then
+		local index_button = datapad.getButtons()
+		for k, value in pairs(index_button)	do
+			if value.click_function == 'joinCircle' then
+				local index_value = value.index
+				datapad.removeButton(index_value)
+				join_circle = false
+			end
+		end
+	end
+
+end
+
+
+--[[ BUTTON FUNCTIONS functions to ID which deck type for drawing since there's no damn argument reported from a button other than clicked object and player--]]
+
+function fcnProbeButton(clickedObj, playerColor)
+	local drawDeck = "deckProbe"
+	local buttonParams = {drawDeck, playerColor, clickedObj}
+	Global.call('drawOneCard', buttonParams)
+end
+
+function fcnProjectButton(clickedObj, playerColor)
+	local drawDeck = "deckImperialProject"
+	local buttonParams = {drawDeck, playerColor, clickedObj}
+	Global.call("drawOneCard", buttonParams)
+end
+
+function fcnMissionButton(clickedObj, playerColor)
+	local drawDeck = "deckImperialMission"
+	local buttonParams = {drawDeck, playerColor, clickedObj}
+	Global.call("drawOneCard", buttonParams)
+end
+
+function fcnActionButton(clickedObj, playerColor)
+	local drawDeck = "deckImperialAction"
+	local buttonParams = {drawDeck, playerColor, clickedObj}
+	Global.call("drawOneCard", buttonParams)
+end
+
+
+function fcnBuildButton(clickedObj, playerColor)
+	local reportType = "Public"
+	local buttonParams = {clickedObj, reportType}
+	Global.call("updateSystemTable", buttonParams)
+end
+
+function fcnPrivateBuildButton(clickedObj, playerColor)
+	local reportType = "Private"
+	local buttonParams = {clickedObj, reportType}
+	Global.call("updateSystemTable", buttonParams)
+end
+
+
+--[[Local Functions --]]
+
+function fcnClearMissionButton(clickedObj, playerColor)
+	local objects = {}
+	local projectsDiscard = {}
+	local missionsDiscard = {}
+	local cardsToHand = {}
+	objects = zoneImpMissionsUnused.getObjects()
+	local type = {}
+	local objectGUID = {}
+	local card = {}
+	local description = {}
+	for index, object in pairs(objects) do
+		type = object.tag
+		if string.find(type, 'Card') then
+			objectGUID = object.getGUID()
+			card = getObjectFromGUID(objectGUID)
+			if card.getRotation().z >= 90 and card.getRotation().z <= 270 then
+				table.insert(cardsToHand, card)
+			elseif card.getRotation().z <= 90 or card.getRotation().z >= 270 then
+				description = object.getDescription()
+				if string.find(description, 'Project') then
+					table.insert(projectsDiscard, card)
+				elseif string.find(description, 'Return to Hand') then
+					table.insert(cardsToHand, card)
+				elseif string.find(description, 'Mission') then
+					table.insert(missionsDiscard, card)
+				end
+			end
+		end
+	end
+	deckTable = Global.getTable("cardDeckTable")
+	if cardsToHand ~= nil or #cardsToHand > 0 then
+		for i=1,#cardsToHand do
+			local params = {}
+			local destinationGUID = '41a77a'
+			local destination = getObjectFromGUID(destinationGUID)
+			params.position = destination.getPosition()
+			params.rotation = {0,180,0}
+			cardsToHand[i].setPositionSmooth(params.position)
+			cardsToHand[i].setRotationSmooth(params.rotation)
+		end
+	end
+	if projectsDiscard ~= nil or #projectsDiscard > 0 then
+		for i=1,#projectsDiscard do
+			local params = {}
+			local destinationGUID = deckTable.deckImperialProject.deckDiscardZone_Guid
+			local destination = getObjectFromGUID(destinationGUID)
+			params.position = {destination.getPosition().x, destination.getPosition().y + i+3, destination.getPosition().z}
+			params.rotation = {0,180,0}
+			projectsDiscard[i].setPositionSmooth(params.position)
+			projectsDiscard[i].setRotation(params.rotation)
+
+		end
+	end
+	if missionsDiscard ~= nil or #missionsDiscard > 0 then
+		for i=1,#missionsDiscard do
+			local params = {}
+			local destinationGUID = deckTable.deckImperialMission.deckDiscardZone_Guid
+			local destination = getObjectFromGUID(destinationGUID)
+			params.position = {destination.getPosition().x, destination.getPosition().y + i+3, destination.getPosition().z}
+			--params.rotation = {0,180,0}
+			missionsDiscard[i].setPositionSmooth(params.position)
+			--missionsDiscard[i].setRotation(params.rotation)
+		end
+	end
+	printToAll("Imperial mission area has been cleared.", msg.sys)
+end
+
+function fcnRecallLeadersButton(clickedObj, playerColor)
+	local objects = {}
+	objects = zoneBoard.getObjects()
+	local leadersAdmirals = {}
+	local leadersGenerals = {}
+	local leadersAll = {}
+	teamGame = Global.getVar("teamGame")
+	for index,object in pairs(objects) do
+		local type = object.tag
+		if string.find(type, 'Figurine') then
+			local description = object.getDescription()
+			local objectGUID = object.getGUID()
+			local leader = getObjectFromGUID(objectGUID)
+			if string.find(description, 'Imperial Admiral') then
+				table.insert(leadersAdmirals, leader)
+			elseif string.find(description, 'Imperial General') then
+				table.insert(leadersGenerals, leader)
+			end
+		elseif object.getGUID() == '3b6bf4' then
+			local leader = getObjectFromGUID('3b6bf4')
+			if fig_type == 'Imperial Admiral' then
+				table.insert(leadersAdmirals, leader)
+			else table.insert(leadersGenerals, leader)
+			end
+		end
+	end
+	if teamGame == true then
+		if leadersAdmirals ~= nil or #leadersAdmirals > 0 then
+			for i=1,#leadersAdmirals do
+				local params = {}
+				local pos = {0,1.05,-18.48}
+				params.position = {pos[1] + leadersTeamAdmPos[i][1], pos[2] + leadersTeamAdmPos[i][2], pos[3] + leadersTeamAdmPos[i][3]}
+				params.rotation = {0,0,0}
+				leadersAdmirals[i].setPositionSmooth(params.position)
+				leadersAdmirals[i].setRotationSmooth(params.rotation)
+			end
+		end
+		if leadersGenerals ~= nil or #leadersGenerals > 0 then
+			for i=1,#leadersGenerals do
+				local params = {}
+				local pos = {0,1.05,-18.48}
+				params.position = {pos[1] + leadersTeamGenPos[i][1], pos[2] + leadersTeamGenPos[i][2], pos[3] + leadersTeamGenPos[i][3]}
+				params.rotation = {0,0,0}
+				leadersGenerals[i].setPositionSmooth(params.position)
+				leadersGenerals[i].setRotationSmooth(params.rotation)
+			end
+		end
+	else
+		local leaderCount = #leadersAdmirals + #leadersGenerals
+		for i=1,leaderCount do
+			local params = {}
+			local pos = {0,1.05,-18.48}
+			params.position = {pos[1] + leadersSoloPos[i][1], pos[2] + leadersSoloPos[i][2], pos[3] + leadersSoloPos[i][3]}
+			params.rotation = {0,0,0}
+			if leadersAdmirals[i] ~= nil then
+				leadersAdmirals[i].setPositionSmooth(params.position)
+				leadersAdmirals[i].setRotationSmooth(params.rotation)
+			else
+				local adjustedI = i - #leadersAdmirals
+				leadersGenerals[adjustedI].setPositionSmooth(params.position)
+				leadersGenerals[adjustedI].setRotationSmooth(params.rotation)
+			end
+		end
+	end
+	printToAll("Imperial Leaders have been recalled.", msg.sys)
+end
+
+
+function fcnDrawRefreshButton(clickedObj, playerColor)
+	--initial hand count
+	local count = 0
+	local initialHand = Player["White"].getHandObjects()
+		for k, v in pairs(initialHand) do
+			count = count + 1
+		end
+	local initialCardCount = count
+	--2 mission
+	fcnMissionButton(clickedObj, playerColor)
+	fcnMissionButton(clickedObj, playerColor)
+	--2 probe
+	fcnProbeButton(clickedObj, playerColor)
+	fcnProbeButton(clickedObj, playerColor)
+	--check hand
+	local finalCount = initialCardCount + 2
+	if finalCount > 10 then
+		local discard = 0
+		local discard = finalCount - 10
+		printToAll("Imperial General has too many cards in Mission Hand! " .. finalCount .. " Cards in hand." .. " Discard " .. discard .. " cards from hand.", {1, 0, 0} )
+	end
+end
+
+function fcnRecruitButton(clickedObj, playerColor)
+	if isRecruiting == false then
+		local playerName = Player[playerColor].steam_name
+		deckTable = Global.getTable("cardDeckTable")
+		local zoneGUID = deckTable.deckImperialAction.deckZone_Guid
+		actionDeckZone = getObjectFromGUID(zoneGUID)
+		local fcnParams = {actionDeckZone, "deckImperialAction"}
+		local params = {}
+		for i = 1,2 do
+			local deck = Global.call("findPile", fcnParams)
+			if(deck) then
+				deckTable = Global.getTable("cardDeckTable")
+				params.position = {recruitMats[i].getPosition().x - 0.06, recruitMats[i].getPosition().y+1, recruitMats[i].getPosition().z + 0.06}
+				params.rotation = {0,180,180}
+				local card = {}
+				if deckTable.deckImperialAction.lastCard == false then
+					local card = deck.takeObject( params )
+					recruitCard[i] = card
+				else
+					local card = deck
+					card.setPositionSmooth ( params.position)
+					card.setRotationSmooth ( params.rotation)
+					recruitCard[i] = card
+				end
+				printToAll("Imperial " .. playerName .. " draws 1 Action card for recruitment.", msg.sys)
+				isRecruiting = true
+			else
+				recruitCard[i] = nil
+				printToAll("Imperial Action deck is depleted.", {1, 0, 0})
+			end
+		end
+		printToAll("Imperial Admiral, choose Action card for recruitment.", msg.sys)
+	else
+		printToAll("Imperial Recruiting process has already been triggered. Use Recruit buttons on the recruting mats.", {1, 0, 0} )
+	end
+end
+
+function recruit(clickedObj, playerColor)
+	local leaderName = {}
+	if isRecruiting == true then
+		for i=1,2 do
+			if recruitCard[i] ~= nil then
+				if clickedObj == recruitMats[i] then
+					local card = recruitCard[i]
+					deckTable = Global.getTable("cardDeckTable")
+					local handGUID = deckTable.deckImperialAction.destinationHand_Guid
+					local hand = getObjectFromGUID(handGUID)
+					local params = hand.getPosition()
+					card.setPositionSmooth (params)
+					local playerName = Player[playerColor].steam_name
+					leaderName = card.getName()
+					printToAll("Imperial " .. playerName .. " has chosen an Action card.", msg.sys )
+				else
+					local fcnParams = {actionDeckZone, "deckImperialAction"}
+					local params = {}
+					local deck = Global.call("findPile", fcnParams)
+					if (deck) then
+						params.position = deck.getPosition()
+						params.rotation = deck.getRotation()
+						local deckParams = {params.position.x, params.position.y + 3, params.position.z}
+						deck.setPositionSmooth( deckParams )
+						recruitCard[i].setPositionSmooth( params.position )
+						recruitCard[i].setRotation( params.rotation )
+					else
+						params.position = actionDeckZone.getPosition()
+						recruitCard[i].flip()
+					end
+
+				end
+				recruitCard[i] = {}
+			else
+				printToAll("No Imperial Leader to recruit.", {1, 0, 0} )
+			end
+		end
+		isRecruiting = false
+	else
+		printToAll("Imperial Recruiting process has not been triggered.", {1, 0, 0} )
+	end
+	--WIP get leader from bag and place in pool
+end
+
+
+--[[WIP functions, inactive
+
+
+
+
+function fcnAdvanceTurnButton(clickedObj, playerColor)
+end
+
+
+function fcnPrivateBuildQueueButton(clickedObj, playerColor)
+end
+--]]
